@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SoloScreen</AssemblyName>
+    <RootNamespace>SoloScreen</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <AssemblyTitle>SoloScreen</AssemblyTitle>
+    <Product>SoloScreen</Product>
+    <Description>SoloScreen — 一键截取单个屏幕</Description>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 同时作为 Win32 资源（资源管理器/任务管理器显示）和托管资源（窗口/托盘运行时读取） -->
+    <EmbeddedResource Include="app.ico" LogicalName="SoloScreen.app.ico" />
+    <!-- 内置音效：没有外置 audio.wav / audio.mp3 时使用，程序不必附带音效文件 -->
+    <EmbeddedResource Include="assets/audio.wav" LogicalName="SoloScreen.audio.wav" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- tools/IconGen 是独立的图标生成工具，不参与主程序编译 -->
+    <Compile Remove="tools/**/*.cs" />
+    <EmbeddedResource Remove="tools/**" />
+    <None Remove="tools/**" />
+  </ItemGroup>
+
+</Project>
