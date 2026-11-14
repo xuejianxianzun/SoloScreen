@@ -74,6 +74,21 @@ The default format is `$YYYY-$MM-$DD-$hh-$mm-$ss-$fff`, for example `2026-10-22-
 
 SoloScreen has a built-in camera shutter sound. To use your own sound, place an audio file named `audio` (either `.wav` or `.mp3`) in the same directory as the program, then restart the program. Your custom sound will be used instead.
 
+## Diagnosing a Silent Disappearance
+
+When the process is force-terminated (`TerminateProcess`) it gets no chance to run any code, so there is no .NET exception and no Windows Error Report — Event Viewer shows nothing at all. Typical causes: a scheduled task hitting its time limit or a power/idle condition, "End task" in Task Manager, or an antivirus block.
+
+The app therefore keeps its own trail, next to the exe:
+
+| File | Contents |
+| --- | --- |
+| `error.log` | Startup, exception stacks, exit reasons. On the next start, if the previous run left no exit record, an explicit "was force-terminated" line is written together with the last heartbeat time. |
+| `session-state.json` | PID, start time, last heartbeat (updated every 60 s) and exit reason of the current session. |
+
+If `ExitReason` in `session-state.json` is empty while the process is gone, it was killed from outside; the "last heartbeat" in `error.log` approximates the time of death.
+
+If you use a **scheduled task** for auto-start, make sure "Stop the task if it runs longer than" is **disabled** (the app rebuilds the task with this setting automatically) — otherwise Task Scheduler terminates the process once the limit is reached.
+
 ## Build
 
 > Developers only. Regular users can just use the published `SoloScreen.exe`.

@@ -17,7 +17,7 @@ internal sealed class TrayApp : ApplicationContext
         _config = AppConfig.Load();
 
         _settingsItem.Click += (_, _) => ShowSettings();
-        _exitItem.Click += (_, _) => ExitApp();
+        _exitItem.Click += (_, _) => ExitApp("用户从托盘菜单选择退出");
 
         var menu = new ContextMenuStrip();
         menu.Items.Add(_settingsItem);
@@ -39,7 +39,12 @@ internal sealed class TrayApp : ApplicationContext
         AutoStartUtil.MigrateLegacyEntries(); // 清理改名前遗留的启动项
 
         bool elevated = ElevationUtil.IsElevated();
-        SimpleLog.Write($"SoloScreen 已启动（托盘模式）。配置的热键：{_config.Hotkey}；管理员权限：{elevated}；音效：{SoundUtil.SourceDescription}");
+        SimpleLog.Write($"SoloScreen v{AppInfo.Version} 已启动（托盘模式）。配置的热键：{_config.Hotkey}；管理员权限：{elevated}；音效：{SoundUtil.SourceDescription}");
+
+        // 自检开机启动项：旧版本用 schtasks 简化参数创建的任务带 72 小时运行时限，
+        // 到点会被任务计划程序静默终止（详见 AutoStartUtil.CreateLogonTask 注释）。
+        // 放后台线程做，避免 schtasks 偶发变慢拖住托盘图标出现。
+        if (_config.AutoStart) Task.Run(AutoStartUtil.EnsureTaskHealthy);
     }
 
     /// <summary>启动时是否应静默到托盘（配置项"启动时不显示界面，最小化到托盘"）。</summary>
@@ -117,7 +122,7 @@ internal sealed class TrayApp : ApplicationContext
             // 以新权限重启：先让本实例退出，再启动新实例（新实例带 --relaunch，会等待互斥量释放）
             if (ElevationUtil.RelaunchElevated())
             {
-                ExitApp();
+                ExitApp("切换管理员权限，重启为新实例");
             }
             else
             {
@@ -125,7 +130,7 @@ internal sealed class TrayApp : ApplicationContext
             }
         };
         _settingsForm.FormClosed += (_, _) => _settingsForm = null;
-        _settingsForm.ExitRequested += ExitApp;
+        _settingsForm.ExitRequested += () => ExitApp("用户在设置界面点击退出");
         _settingsForm.Show();
         BringToFrontHard(_settingsForm);
     }
@@ -177,8 +182,10 @@ internal sealed class TrayApp : ApplicationContext
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern bool BringWindowToTop(IntPtr hWnd);
 
-    private void ExitApp()
+    /// <summary>退出程序。reason 会写进 error.log 与 session-state.json，便于事后追查"它是怎么没的"。</summary>
+    private void ExitApp(string reason)
     {
+        ExitTrace.Complete(reason);
         _hotkeyWindow.Unregister();
         SoundUtil.Shutdown();
         _tray.Visible = false;

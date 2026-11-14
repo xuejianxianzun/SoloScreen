@@ -15,6 +15,8 @@ internal static class Program
         var mutex = AcquireSingleInstance(args.Contains("--relaunch", StringComparer.OrdinalIgnoreCase));
         if (mutex is null)
         {
+            // 已有实例在跑：记一条，便于区分"程序自己退了"和"用户又点了一次图标"
+            SimpleLog.Write("已有实例在运行，本次启动直接退出（单实例保护）。");
             MessageBox.Show(Strings.AlreadyRunning, "SoloScreen",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
@@ -22,6 +24,9 @@ internal static class Program
 
         try
         {
+            // 运行痕迹/退出原因记录：必须尽早开启，且在单实例保护之后
+            ExitTrace.Start();
+
             ApplicationConfiguration.Initialize();
             var app = new TrayApp();
 
@@ -44,6 +49,12 @@ internal static class Program
             }
 
             Application.Run(app);
+        }
+        catch (Exception ex)
+        {
+            // 走到这里说明连消息循环都没起来或异常逃逸出 Application.Run，务必留下现场
+            SimpleLog.Write("消息循环异常退出：" + ex);
+            ExitTrace.Complete("消息循环异常退出（堆栈见上一条）");
         }
         finally
         {
